@@ -1,0 +1,37 @@
+{
+    "name": "entra-id-plus",
+    "version": "0.1.0",
+    "main": "dist/index.js",
+    "scripts": {
+        "clean": "shx rm -rf ./dist",
+        "prebuild": "npm run clean",
+        "build": "npx ncc build ./src/index.ts -o ./dist -m -C",
+        "dev": "cross-env NODE_OPTIONS=--enable-source-maps spcx run dist/index.js",
+        "debug": "spcx run dist/index.js",
+        "prettier": "npx prettier --write .",
+        "prepack-zip": "npm ci && npm run build",
+        "pack-zip": "spcx package"
+    },
+    "private": true,
+    "dependencies": {
+        "@azure/identity": "^4.9.1",
+        "@microsoft/microsoft-graph-client": "^3.0.7",
+        "@sailpoint/connector-sdk": "^1.0.0",
+        "isomorphic-fetch": "^3.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.15.16",
+        "@vercel/ncc": "^0.34.0",
+        "cross-env": "7.0.3",
+        "prettier": "^2.3.2",
+        "shx": "^0.3.3",
+        "typescript": "^5.7.2"
+    },
+    "prettier": {
+        "printWidth": 120,
+        "trailingComma": "es5",
+        "tabWidth": 4,
+        "semi": false,
+        "singleQuote": true
+    }
+}
