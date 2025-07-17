@@ -22,8 +22,12 @@ export const connectorCustomizer = async () => {
         logger.debug('stdAccountListAfterHandler: ' + JSON.stringify(output ?? {}))
         for (const [attribute, operation] of Object.entries(operations)) {
             logger.debug(`Running operation for attribute ${attribute}`)
-            const value = await operation(output)
-            setAccountAttribute(output, attribute, value)
+            try {
+                const value = await operation(output)
+                setAccountAttribute(output, attribute, value)
+            } catch (error) {
+                logger.error(`Error running operation on ${output.uuid} for attribute ${attribute}: ${error}`)
+            }
         }
 
         return output
@@ -37,8 +41,12 @@ export const connectorCustomizer = async () => {
         logger.debug(JSON.stringify(context))
         for (const [attribute, operation] of Object.entries(operations)) {
             logger.debug(`Running operation for attribute ${attribute}`)
-            const value = await operation(output)
-            setAccountAttribute(output, attribute, value)
+            try {
+                const value = await operation(output)
+                setAccountAttribute(output, attribute, value)
+            } catch (error) {
+                logger.error(`Error running operation on ${output.uuid} for attribute ${attribute}: ${error}`)
+            }
         }
 
         return output
