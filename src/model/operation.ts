@@ -1,5 +1,6 @@
 import { Attributes, ObjectOutput, Permission } from '@sailpoint/connector-sdk'
 
+// Generic account object shape compatible with SDK account outputs
 export type AccountObject = ObjectOutput & {
     disabled?: boolean
     locked?: boolean
@@ -7,8 +8,19 @@ export type AccountObject = ObjectOutput & {
     permissions?: Permission[]
 }
 
-export type AccountOperation = (account: AccountObject) => Promise<any>
+// Generic entitlement object shape compatible with SDK entitlement outputs
+export type EntitlementObject = ObjectOutput & {
+    disabled?: boolean
+    locked?: boolean
+    type: string
+    attributes: Attributes
+    permissions?: Permission[]
+}
 
-export type OperationMap = {
-    [key: string]: AccountOperation
+// Operation executed against an account/entitlement; returns a value to set on an attribute
+export type Operation<T extends AccountObject | EntitlementObject> = (object: T) => Promise<T>
+
+// Map of operations keyed by attribute path
+export type OperationMap<T extends AccountObject | EntitlementObject> = {
+    [key: string]: Operation<T>
 }
