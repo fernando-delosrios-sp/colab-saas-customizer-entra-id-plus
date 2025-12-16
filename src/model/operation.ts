@@ -13,13 +13,12 @@ export type EntitlementObject = ObjectOutput & {
     disabled?: boolean
     locked?: boolean
     type: string
-    name?: string
     attributes: Attributes
     permissions?: Permission[]
 }
 
 // Operation executed against an account/entitlement; returns a value to set on an attribute
-export type Operation<T extends AccountObject | EntitlementObject> = (object: T) => Promise<T>
+export type Operation<T extends AccountObject | EntitlementObject> = (object: T) => Promise<any>
 
 // Map of operations keyed by attribute path
 export type OperationMap<T extends AccountObject | EntitlementObject> = {
