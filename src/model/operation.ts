@@ -13,6 +13,7 @@ export type EntitlementObject = ObjectOutput & {
     disabled?: boolean
     locked?: boolean
     type: string
+    name?: string
     attributes: Attributes
     permissions?: Permission[]
 }

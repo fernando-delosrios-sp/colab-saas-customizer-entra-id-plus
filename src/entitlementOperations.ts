@@ -5,8 +5,8 @@ import { runOperations } from './utils'
 const APPLICATION_ENTITLEMENT_TYPES = ['applicationRole']
 
 export const getApplication: Operation<EntitlementObject> = async (entitlement: EntitlementObject) => {
-    if (APPLICATION_ENTITLEMENT_TYPES.includes(entitlement.type)) {
-        const [name, application] = entitlement.uuid!.split(' [on] ')
+    if (APPLICATION_ENTITLEMENT_TYPES.includes(entitlement.type) && entitlement.name) {
+        const [name, application] = entitlement.name.split(' [on] ')
         entitlement.attributes.application = application
     }
 

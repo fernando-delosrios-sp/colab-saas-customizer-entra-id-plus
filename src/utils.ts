@@ -19,6 +19,8 @@ export const runOperations = <T extends AccountObject | EntitlementObject>(opera
     return async (context: Context, output: T): Promise<T> => {
         const config: Config = await readConfig()
         const logger = getLogger(config.spConnDebugLoggingEnabled)
+        logger.debug('Running operations on output:')
+        logger.debug(output)
         for (const [attribute, operation] of Object.entries(operations)) {
             logger.debug(`${context.commandType} - Running operation for attribute ${attribute}`)
             const value = await operation(output)
