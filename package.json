@@ -1,6 +1,6 @@
 {
     "name": "entra-id-plus",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "main": "dist/index.js",
     "scripts": {
         "clean": "shx rm -rf ./dist",
@@ -16,7 +16,7 @@
     "dependencies": {
         "@azure/identity": "^4.9.1",
         "@microsoft/microsoft-graph-client": "^3.0.7",
-        "@sailpoint/connector-sdk": "^1.0.0",
+        "@sailpoint/connector-sdk": "1.1.33",
         "isomorphic-fetch": "^3.0.0"
     },
     "devDependencies": {

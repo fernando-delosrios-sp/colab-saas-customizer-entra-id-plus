@@ -3,7 +3,7 @@ import { Attributes, ObjectOutput, Permission } from '@sailpoint/connector-sdk'
 export type AccountObject = ObjectOutput & {
     disabled?: boolean
     locked?: boolean
-    attributes: Attributes
+    attributes?: Attributes
     permissions?: Permission[]
 }
 

@@ -1,3 +1,6 @@
+// Configuration file path constant
+export const GROUP_CREATION_CONFIG_FILE = 'group-creation-config.json'
+
 export interface Config {
     beforeProvisioningRule: any
     cloudCacheUpdate: number
@@ -85,6 +88,29 @@ export interface Config {
     spConnEnableStatefulCommands?: boolean
     spConnectorInstanceId?: string
     spConnectorSpecId?: string
+}
+
+// Group creation configuration
+export interface GroupCreationConfig {
+    prefix: string
+    categories: string[]
+    groupTypes: GroupType[]
+}
+
+export interface GroupType {
+    name: string
+    omitInNaming: boolean
+}
+
+// Default group creation configuration
+export const DEFAULT_GROUP_CREATION_CONFIG: GroupCreationConfig = {
+    prefix: 'GrQ',
+    categories: ['H', 'HI'],
+    groupTypes: [
+        { name: 'Main', omitInNaming: true },
+        { name: 'GrG-Dipendenti', omitInNaming: false },
+        { name: 'GrG-Responsabili', omitInNaming: false }
+    ]
 }
 
 export interface DeltaAggregation {
