@@ -1,20 +1,30 @@
 import { createConnectorCustomizer, logger } from '@sailpoint/connector-sdk'
-import { runAccountOperations } from './accountOperations'
-import { runEntitlementOperations } from './entitlementOperations'
+import { runAccountBeforeOperations, runAccountAfterOperations } from './accountOperations'
+import { runEntitlementBeforeOperations, runEntitlementAfterOperations } from './entitlementOperations'
 
 // Connector customizer must be exported as module property named connectorCustomizer
 export const connectorCustomizer = async () => {
     logger.info('Initializing Entra ID Plus connector customizer')
 
     return createConnectorCustomizer()
-        .afterStdAccountList(runAccountOperations)
-        .afterStdAccountRead(runAccountOperations)
-        .afterStdAccountCreate(runAccountOperations)
-        .afterStdAccountUpdate(runAccountOperations)
-        .afterStdAccountDisable(runAccountOperations)
-        .afterStdAccountEnable(runAccountOperations)
-        .afterStdAccountUnlock(runAccountOperations)
-        .afterStdChangePassword(runAccountOperations)
-        .afterStdEntitlementList(runEntitlementOperations)
-        .afterStdEntitlementRead(runEntitlementOperations)
+        .beforeStdAccountList(runAccountBeforeOperations)
+        .beforeStdAccountRead(runAccountBeforeOperations)
+        .beforeStdAccountCreate(runAccountBeforeOperations)
+        .beforeStdAccountUpdate(runAccountBeforeOperations)
+        .beforeStdAccountDisable(runAccountBeforeOperations)
+        .beforeStdAccountEnable(runAccountBeforeOperations)
+        .beforeStdAccountUnlock(runAccountBeforeOperations)
+        .beforeStdChangePassword(runAccountBeforeOperations)
+        .beforeStdEntitlementList(runEntitlementBeforeOperations)
+        .beforeStdEntitlementRead(runEntitlementBeforeOperations)
+        .afterStdAccountList(runAccountAfterOperations)
+        .afterStdAccountRead(runAccountAfterOperations)
+        .afterStdAccountCreate(runAccountAfterOperations)
+        .afterStdAccountUpdate(runAccountAfterOperations)
+        .afterStdAccountDisable(runAccountAfterOperations)
+        .afterStdAccountEnable(runAccountAfterOperations)
+        .afterStdAccountUnlock(runAccountAfterOperations)
+        .afterStdChangePassword(runAccountAfterOperations)
+        .afterStdEntitlementList(runEntitlementAfterOperations)
+        .afterStdEntitlementRead(runEntitlementAfterOperations)
 }

@@ -1,72 +1,102 @@
 import {
     Context,
-    readConfig,
+    StdAccountListInput,
     StdAccountListOutput,
+    StdAccountReadInput,
     StdAccountReadOutput,
+    StdAccountCreateInput,
     StdAccountCreateOutput,
+    StdAccountUpdateInput,
     StdAccountUpdateOutput,
+    StdAccountDisableInput,
     StdAccountDisableOutput,
+    StdAccountEnableInput,
     StdAccountEnableOutput,
+    StdAccountUnlockInput,
     StdAccountUnlockOutput,
+    StdChangePasswordInput,
     StdChangePasswordOutput,
 } from '@sailpoint/connector-sdk'
-import { EntraIdClient } from './entraid-client'
-import { AccountObject, Operation, OperationMap } from './model/operation'
-import { Config } from './model/config'
-import { getLogger, runOperations } from './utils'
+import { AccountObject, AfterOperationMap, BeforeOperationMap } from './model/operation'
+import { runAfterOperations, runBeforeOperations } from './utils'
+import { setSponsors } from './operations/setSponsors'
+import { stripSponsors } from './operations/stripSponsors'
 
-export const getSponsors: Operation<AccountObject> = async (account: AccountObject) => {
-    const config: Config = await readConfig()
-    const logger = getLogger(config.spConnDebugLoggingEnabled)
-
-    // Type guard: check if account has attributes property
-    if ('attributes' in account && account.attributes) {
-        logger.debug(`Getting sponsors for ${account.attributes.userPrincipalName}`)
-        logger.debug('Loading client')
-        const client = new EntraIdClient(config.domainName, config.clientID, config.clientSecret)
-        logger.debug('Getting sponsors')
-        const sponsors = await client.getSponsorsForGuest(account.attributes.objectId as string)
-        logger.debug('Got sponsors')
-        if (sponsors.length === 0) {
-            logger.debug('No sponsors found')
-            return undefined
-        } else if (sponsors.length === 1) {
-            logger.debug('Found one sponsor: ' + sponsors[0].userPrincipalName)
-            return sponsors[0].userPrincipalName
-        } else {
-            logger.debug('Found more than one sponsor: ' + sponsors.map((x: any) => x.userPrincipalName).join(', '))
-            return sponsors.map((x: any) => x.userPrincipalName)
-        }
-    } else {
-        const uuid = 'uuid' in account ? account.uuid : 'unknown'
-        logger.debug('No attributes found for ' + uuid)
-        return undefined
-    }
+// Before operations (executed before the connector processes the command)
+export const accountBeforeOperations: BeforeOperationMap<AccountObject> = {
+    'attributes.sponsors': stripSponsors,
 }
 
-export const accountOperations: OperationMap<AccountObject> = {
-    'attributes.sponsors': getSponsors,
+// After operations (executed after the connector processes the command)
+export const accountAfterOperations: AfterOperationMap<AccountObject> = {
+    'attributes.sponsors': setSponsors,
 }
 
-const runAccountOperationsImpl = runOperations(accountOperations)
+const runAccountBeforeOperationsImpl = runBeforeOperations(accountBeforeOperations)
+const runAccountAfterOperationsImpl = runAfterOperations(accountAfterOperations)
 
-// Overloads to match SDK after-handler signatures
-export function runAccountOperations(context: Context, output: StdAccountListOutput): Promise<StdAccountListOutput>
-export function runAccountOperations(context: Context, output: StdAccountReadOutput): Promise<StdAccountReadOutput>
-export function runAccountOperations(context: Context, output: StdAccountCreateOutput): Promise<StdAccountCreateOutput>
-export function runAccountOperations(context: Context, output: StdAccountUpdateOutput): Promise<StdAccountUpdateOutput>
-export function runAccountOperations(
+// Before operation overloads
+export function runAccountBeforeOperations(context: Context, input: StdAccountListInput): Promise<StdAccountListInput>
+export function runAccountBeforeOperations(context: Context, input: StdAccountReadInput): Promise<StdAccountReadInput>
+export function runAccountBeforeOperations(
+    context: Context,
+    input: StdAccountCreateInput
+): Promise<StdAccountCreateInput>
+export function runAccountBeforeOperations(
+    context: Context,
+    input: StdAccountUpdateInput
+): Promise<StdAccountUpdateInput>
+export function runAccountBeforeOperations(
+    context: Context,
+    input: StdAccountDisableInput
+): Promise<StdAccountDisableInput>
+export function runAccountBeforeOperations(
+    context: Context,
+    input: StdAccountEnableInput
+): Promise<StdAccountEnableInput>
+export function runAccountBeforeOperations(
+    context: Context,
+    input: StdAccountUnlockInput
+): Promise<StdAccountUnlockInput>
+export function runAccountBeforeOperations(
+    context: Context,
+    input: StdChangePasswordInput
+): Promise<StdChangePasswordInput>
+
+// Before implementation
+export function runAccountBeforeOperations(context: Context, input: any): Promise<any> {
+    return runAccountBeforeOperationsImpl(context, input)
+}
+
+// After operation overloads
+export function runAccountAfterOperations(context: Context, output: StdAccountListOutput): Promise<StdAccountListOutput>
+export function runAccountAfterOperations(context: Context, output: StdAccountReadOutput): Promise<StdAccountReadOutput>
+export function runAccountAfterOperations(
+    context: Context,
+    output: StdAccountCreateOutput
+): Promise<StdAccountCreateOutput>
+export function runAccountAfterOperations(
+    context: Context,
+    output: StdAccountUpdateOutput
+): Promise<StdAccountUpdateOutput>
+export function runAccountAfterOperations(
     context: Context,
     output: StdAccountDisableOutput
 ): Promise<StdAccountDisableOutput>
-export function runAccountOperations(context: Context, output: StdAccountEnableOutput): Promise<StdAccountEnableOutput>
-export function runAccountOperations(context: Context, output: StdAccountUnlockOutput): Promise<StdAccountUnlockOutput>
-export function runAccountOperations(
+export function runAccountAfterOperations(
+    context: Context,
+    output: StdAccountEnableOutput
+): Promise<StdAccountEnableOutput>
+export function runAccountAfterOperations(
+    context: Context,
+    output: StdAccountUnlockOutput
+): Promise<StdAccountUnlockOutput>
+export function runAccountAfterOperations(
     context: Context,
     output: StdChangePasswordOutput
 ): Promise<StdChangePasswordOutput>
 
-// Implementation
-export function runAccountOperations(context: Context, output: AccountObject): Promise<AccountObject> {
-    return runAccountOperationsImpl(context, output)
+// After implementation
+export function runAccountAfterOperations(context: Context, output: AccountObject): Promise<AccountObject> {
+    return runAccountAfterOperationsImpl(context, output)
 }

@@ -40,4 +40,56 @@ export class EntraIdClient {
             return []
         }
     }
+
+    async setSponsorForUser(userId: string, sponsorUpn: string): Promise<void> {
+        try {
+            // Step 1: Resolve sponsor UPN to their object ID
+            logger.info(`Resolving sponsor UPN: ${sponsorUpn}`)
+            const sponsorResponse = await this.graphClient
+                .api(`/users/${sponsorUpn}`)
+                .select('id')
+                .get()
+
+            const sponsorId = sponsorResponse.id
+            logger.info(`Resolved sponsor ID: ${sponsorId}`)
+
+            // Step 2: Set the sponsor on the target user
+            await this.graphClient.api(`/users/${userId}/sponsors/$ref`).post({
+                '@odata.id': `https://graph.microsoft.com/v1.0/users/${sponsorId}`,
+            })
+            logger.info(`Successfully set sponsor ${sponsorUpn} for user ${userId}`)
+        } catch (error) {
+            logger.error(`Error setting sponsor ${sponsorUpn} for user ${userId}:`)
+            logger.error(error)
+            throw error
+        }
+    }
+
+    async removeSponsorForUser(userId: string, sponsorId: string): Promise<void> {
+        try {
+            await this.graphClient.api(`/users/${userId}/sponsors/${sponsorId}/$ref`).delete()
+            logger.info(`Successfully removed sponsor ${sponsorId} from user ${userId}`)
+        } catch (error) {
+            logger.error(`Error removing sponsor ${sponsorId} from user ${userId}:`)
+            logger.error(error)
+            throw error
+        }
+    }
+
+    async clearSponsorsForUser(userId: string): Promise<void> {
+        try {
+            const sponsorsResponse = await this.graphClient.api(`/users/${userId}/sponsors`).get()
+            const sponsors = (sponsorsResponse.value as any[]) ?? []
+            for (const sponsor of sponsors) {
+                await this.removeSponsorForUser(userId, sponsor.id)
+            }
+            if (sponsors.length > 0) {
+                logger.info(`Cleared ${sponsors.length} sponsor(s) from user ${userId}`)
+            }
+        } catch (error) {
+            logger.error(`Error clearing sponsors for user ${userId}:`)
+            logger.error(error)
+            throw error
+        }
+    }
 }

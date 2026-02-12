@@ -1,43 +1,51 @@
-import { Context, readConfig, StdEntitlementListOutput, StdEntitlementReadOutput } from '@sailpoint/connector-sdk'
-import { EntitlementObject, Operation, OperationMap } from './model/operation'
-import { getLogger, runOperations } from './utils'
-import { Config } from './model/config'
+import {
+    Context,
+    StdEntitlementListInput,
+    StdEntitlementListOutput,
+    StdEntitlementReadInput,
+    StdEntitlementReadOutput,
+} from '@sailpoint/connector-sdk'
+import { EntitlementObject, AfterOperationMap, BeforeOperationMap, BeforeOperationInput } from './model/operation'
+import { runAfterOperations, runBeforeOperations } from './utils'
+import { getApplication } from './operations/getApplication'
 
-const APPLICATION_ENTITLEMENT_TYPES = ['applicationRole']
+// Before operations (executed before the connector processes the command)
+export const entitlementBeforeOperations: BeforeOperationMap<BeforeOperationInput> = {}
 
-export const getApplication: Operation<EntitlementObject> = async (entitlement: EntitlementObject) => {
-    const config: Config = await readConfig()
-    const logger = getLogger(config.spConnDebugLoggingEnabled)
-
-    if (APPLICATION_ENTITLEMENT_TYPES.includes(entitlement.type) && entitlement.attributes.displayName) {
-        logger.debug(`Processing application entitlement type: ${entitlement.type}`)
-        const [name, application] = entitlement.attributes.displayName.toString().split(' [on] ')
-        logger.debug(
-            `Parsed displayName: "${entitlement.attributes.displayName}". Extracted application: "${application}"`
-        )
-
-        return application
-    }
-}
-
-// Placeholder for future entitlement-specific operations
-export const entitlementOperations: OperationMap<EntitlementObject> = {
+// After operations (executed after the connector processes the command)
+export const entitlementAfterOperations: AfterOperationMap<EntitlementObject> = {
     'attributes.application': getApplication,
 }
 
-const runEntitlementOperationsImpl = runOperations(entitlementOperations)
+const runEntitlementBeforeOperationsImpl = runBeforeOperations(entitlementBeforeOperations)
+const runEntitlementAfterOperationsImpl = runAfterOperations(entitlementAfterOperations)
 
-// Overloads to match SDK after-handler signatures
-export function runEntitlementOperations(
+// Before operation overloads
+export function runEntitlementBeforeOperations(
+    context: Context,
+    input: StdEntitlementListInput
+): Promise<StdEntitlementListInput>
+export function runEntitlementBeforeOperations(
+    context: Context,
+    input: StdEntitlementReadInput
+): Promise<StdEntitlementReadInput>
+
+// Before implementation
+export function runEntitlementBeforeOperations(context: Context, input: any): Promise<any> {
+    return runEntitlementBeforeOperationsImpl(context, input)
+}
+
+// After operation overloads
+export function runEntitlementAfterOperations(
     context: Context,
     output: StdEntitlementListOutput
 ): Promise<StdEntitlementListOutput>
-export function runEntitlementOperations(
+export function runEntitlementAfterOperations(
     context: Context,
     output: StdEntitlementReadOutput
 ): Promise<StdEntitlementReadOutput>
 
-// Implementation
-export function runEntitlementOperations(context: Context, output: EntitlementObject): Promise<EntitlementObject> {
-    return runEntitlementOperationsImpl(context, output)
+// After implementation
+export function runEntitlementAfterOperations(context: Context, output: EntitlementObject): Promise<EntitlementObject> {
+    return runEntitlementAfterOperationsImpl(context, output)
 }

@@ -291,6 +291,9 @@ Set `spConnDebugLoggingEnabled: true` in your connector configuration to enable 
 - **Missing attributes**  
   Verify that the incoming account/entitlement objects contain the fields your operations use (for example, `attributes.objectId`, `attributes.userPrincipalName`, `uuid`, `type`). Add appropriate null/undefined checks in custom operations when necessary.
 
+- **404 on account aggregation / "Object Not Found"**  
+  If aggregation fails with a 404 when fetching accounts and the Graph request includes `sponsors` in `$select`, the base connector is trying to fetch sponsors as a direct attribute. In Microsoft Graph, `sponsors` is a **navigation property** (it requires `$expand`, not `$select`). Configure the `sponsors` attribute in ISC so the connector does **not** fetch it—mark it as connector-supplied, custom, or "do not fetch." The customizer's AfterOperation provides sponsors via a separate `GET /users/{id}/sponsors` call after the account is retrieved.
+
 - **Graph API throttling or failures**  
   Monitor logs for `Error fetching ...` messages from `EntraIdClient`. Consider adding retry/backoff or caching in custom methods if you are making many Graph calls per aggregation.
 
