@@ -1,102 +1,56 @@
-import {
-    Context,
-    StdAccountListInput,
-    StdAccountListOutput,
-    StdAccountReadInput,
-    StdAccountReadOutput,
-    StdAccountCreateInput,
-    StdAccountCreateOutput,
-    StdAccountUpdateInput,
-    StdAccountUpdateOutput,
-    StdAccountDisableInput,
-    StdAccountDisableOutput,
-    StdAccountEnableInput,
-    StdAccountEnableOutput,
-    StdAccountUnlockInput,
-    StdAccountUnlockOutput,
-    StdChangePasswordInput,
-    StdChangePasswordOutput,
-} from '@sailpoint/connector-sdk'
+/**
+ * Account Operations
+ *
+ * Register your custom before/after operations for account attributes here.
+ * Each entry maps an attribute name (e.g. 'sponsors') to a handler function.
+ * Use a `null` key for operations that should run unconditionally.
+ *
+ * - Before operations run before the connector processes the command.
+ *   They receive the raw SDK input and can transform it or perform side-effects (e.g. writing
+ *   to a target API) before the base connector acts.
+ *
+ * - After operations run after the connector returns its output.
+ *   They receive each output object and return a value that gets written to the mapped attribute.
+ *
+ * To add a custom attribute:
+ *   1. Write your operation function in src/operations/
+ *   2. Add the attribute name → function entry to the map below
+ *   3. The framework handles the rest (iteration, attribute assignment, logging)
+ */
+import { Context } from '@sailpoint/connector-sdk'
 import { AccountObject, AfterOperationMap, BeforeOperationMap } from './model/operation'
-import { runAfterOperations, runBeforeOperations } from './utils'
+import { runAfterOperations, runBeforeOperations } from './operationRunner'
 import { setSponsors } from './operations/setSponsors'
-import { stripSponsors } from './operations/stripSponsors'
+import { handleSponsorUpdate } from './operations/handleSponsorUpdate'
 
-// Before operations (executed before the connector processes the command)
+// ---------------------------------------------------------------------------
+// Operation maps — add your custom account operations here
+// ---------------------------------------------------------------------------
+
+/** Before operations: keyed by attribute name (or `null` for always-run). */
 export const accountBeforeOperations: BeforeOperationMap<AccountObject> = {
-    'attributes.sponsors': stripSponsors,
+    sponsors: handleSponsorUpdate,
 }
 
-// After operations (executed after the connector processes the command)
+/** After operations: keyed by attribute name (or `null` for always-run). */
 export const accountAfterOperations: AfterOperationMap<AccountObject> = {
-    'attributes.sponsors': setSponsors,
+    sponsors: setSponsors,
 }
 
-const runAccountBeforeOperationsImpl = runBeforeOperations(accountBeforeOperations)
-const runAccountAfterOperationsImpl = runAfterOperations(accountAfterOperations)
+// ---------------------------------------------------------------------------
+// Handlers passed to the customizer in index.ts
+// Cast to a broad signature so a single handler is accepted by all SDK
+// before/after method overloads (StdAccountList, StdAccountRead, etc.).
+// ---------------------------------------------------------------------------
 
-// Before operation overloads
-export function runAccountBeforeOperations(context: Context, input: StdAccountListInput): Promise<StdAccountListInput>
-export function runAccountBeforeOperations(context: Context, input: StdAccountReadInput): Promise<StdAccountReadInput>
-export function runAccountBeforeOperations(
+/** Runs all registered before-operations for accounts. */
+export const runAccountBeforeOperations = runBeforeOperations(accountBeforeOperations) as (
     context: Context,
-    input: StdAccountCreateInput
-): Promise<StdAccountCreateInput>
-export function runAccountBeforeOperations(
-    context: Context,
-    input: StdAccountUpdateInput
-): Promise<StdAccountUpdateInput>
-export function runAccountBeforeOperations(
-    context: Context,
-    input: StdAccountDisableInput
-): Promise<StdAccountDisableInput>
-export function runAccountBeforeOperations(
-    context: Context,
-    input: StdAccountEnableInput
-): Promise<StdAccountEnableInput>
-export function runAccountBeforeOperations(
-    context: Context,
-    input: StdAccountUnlockInput
-): Promise<StdAccountUnlockInput>
-export function runAccountBeforeOperations(
-    context: Context,
-    input: StdChangePasswordInput
-): Promise<StdChangePasswordInput>
+    input: any
+) => Promise<any>
 
-// Before implementation
-export function runAccountBeforeOperations(context: Context, input: any): Promise<any> {
-    return runAccountBeforeOperationsImpl(context, input)
-}
-
-// After operation overloads
-export function runAccountAfterOperations(context: Context, output: StdAccountListOutput): Promise<StdAccountListOutput>
-export function runAccountAfterOperations(context: Context, output: StdAccountReadOutput): Promise<StdAccountReadOutput>
-export function runAccountAfterOperations(
+/** Runs all registered after-operations for accounts. */
+export const runAccountAfterOperations = runAfterOperations(accountAfterOperations) as (
     context: Context,
-    output: StdAccountCreateOutput
-): Promise<StdAccountCreateOutput>
-export function runAccountAfterOperations(
-    context: Context,
-    output: StdAccountUpdateOutput
-): Promise<StdAccountUpdateOutput>
-export function runAccountAfterOperations(
-    context: Context,
-    output: StdAccountDisableOutput
-): Promise<StdAccountDisableOutput>
-export function runAccountAfterOperations(
-    context: Context,
-    output: StdAccountEnableOutput
-): Promise<StdAccountEnableOutput>
-export function runAccountAfterOperations(
-    context: Context,
-    output: StdAccountUnlockOutput
-): Promise<StdAccountUnlockOutput>
-export function runAccountAfterOperations(
-    context: Context,
-    output: StdChangePasswordOutput
-): Promise<StdChangePasswordOutput>
-
-// After implementation
-export function runAccountAfterOperations(context: Context, output: AccountObject): Promise<AccountObject> {
-    return runAccountAfterOperationsImpl(context, output)
-}
+    output: any
+) => Promise<any>

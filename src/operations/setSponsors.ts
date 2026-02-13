@@ -1,11 +1,28 @@
+/**
+ * After operation — setSponsors
+ *
+ * Enriches each account output with its sponsor(s) from Microsoft Graph.
+ * Runs after every standard account command (list, read, create, update, etc.).
+ *
+ * For **create** commands, the companion before operation (handleSponsorUpdate)
+ * defers the Graph write because the user didn't exist yet. This after operation
+ * detects the pending sponsor change in the cache and applies it first, then
+ * reads the sponsors back.
+ *
+ * Returns:
+ *  - undefined          when no sponsors exist
+ *  - a single UPN string when exactly one sponsor
+ *  - an array of UPNs   when multiple sponsors
+ *
+ * The framework writes this value to `attributes.sponsors` on the account.
+ */
 import { AttributeChangeOp, Context, readConfig } from '@sailpoint/connector-sdk'
 import { EntraIdClient } from '../entraid-client'
 import { AccountObject, AfterOperation } from '../model/operation'
 import { Config } from '../model/config'
 import { getLogger } from '../utils'
-import { getPendingSponsorChange } from './stripSponsors'
+import { getCachedInput } from './handleSponsorUpdate'
 
-/** Unified sponsors AfterOperation: gets sponsors for list/read, sets sponsors for create/update */
 export const setSponsors: AfterOperation<AccountObject> = async (
     context: Context,
     output: AccountObject
@@ -13,75 +30,59 @@ export const setSponsors: AfterOperation<AccountObject> = async (
     const config: Config = await readConfig()
     const logger = getLogger(config.spConnDebugLoggingEnabled)
 
-    const cmd = context.commandType ?? ''
+    logger.debug(`setSponsors: original output = ${JSON.stringify(output)}`)
 
-    if (cmd === 'std:account:list' || cmd === 'std:account:read') {
-        return getSponsorsForAccount(config, logger, output)
+    // Resolve userId from the output object or fall back to the cached before-operation input
+    let userId = resolveUserIdFromOutput(output)
+    const cached = getCachedInput(context)
+
+    if (!userId && cached?.userId) {
+        userId = cached.userId
     }
 
-    if (cmd === 'std:account:create' || cmd === 'std:account:update') {
-        const pending = getPendingSponsorChange(context)
-        if (!pending) {
-            return getSponsorsForAccount(config, logger, output)
-        }
+    logger.debug(`setSponsors: userId=${userId}`)
 
-        const userId = pending.userId ?? getUserIdFromOutput(output)
-        if (!userId) {
-            logger.debug('No user identity found in output, skipping sponsor assignment')
-            return undefined
-        }
-
-        const client = new EntraIdClient(config.domainName, config.clientID, config.clientSecret)
-
-        if (pending.op === AttributeChangeOp.Remove) {
-            logger.debug(`Clearing sponsors for user ${userId}`)
-            await client.clearSponsorsForUser(userId)
-            logger.debug(`Successfully cleared sponsors for user ${userId}`)
-            return [] // Explicit empty to signal ISC that sponsors were cleared
-        }
-
-        const sponsorUpn: string | undefined = (Array.isArray(pending.value) ? pending.value[0] : pending.value) as
-            | string
-            | undefined
-        if (!sponsorUpn) {
-            logger.debug('No sponsor value in pending change, skipping')
-            return undefined
-        }
-
-        logger.debug(`Setting sponsor ${sponsorUpn} for user ${userId}`)
-        await client.setSponsorForUser(userId, sponsorUpn)
-        logger.debug(`Successfully set sponsor ${sponsorUpn} for user ${userId}`)
-        return sponsorUpn
-    }
-
-    return getSponsorsForAccount(config, logger, output)
-}
-
-function getUserIdFromOutput(output: AccountObject): string | undefined {
-    const attrs = output && 'attributes' in output ? (output as any).attributes : undefined
-    return attrs?.objectId ?? (output as any).identity ?? (output as any).key?.simple?.id
-}
-
-async function getSponsorsForAccount(
-    config: Config,
-    logger: ReturnType<typeof getLogger>,
-    account: AccountObject
-): Promise<string | string[] | undefined> {
-    const userId = getUserIdFromOutput(account)
     if (!userId) {
-        logger.debug('No user identity found for account, skipping sponsor lookup')
+        logger.debug('setSponsors: no userId found, returning undefined')
         return undefined
     }
 
-    logger.debug(`Getting sponsors for ${(account as any).attributes?.userPrincipalName ?? userId}`)
     const client = new EntraIdClient(config.domainName, config.clientID, config.clientSecret)
-    const sponsors = await client.getSponsorsForGuest(userId)
 
-    if (sponsors.length === 0) {
-        return undefined
+    // If the before operation deferred a sponsor write (create flow), apply it now
+    if (cached?.pendingSponsor) {
+        const { op, upn } = cached.pendingSponsor
+        logger.debug(`setSponsors: applying deferred sponsor change (op=${op}, upn=${upn}) for ${userId}`)
+        if (op === AttributeChangeOp.Remove) {
+            await client.clearSponsorsForUser(userId)
+        } else if (upn) {
+            await client.setSponsorForUser(userId, upn)
+        }
     }
-    if (sponsors.length === 1) {
-        return sponsors[0].userPrincipalName
-    }
+
+    // Fetch sponsors from Graph and normalise the return value
+    const sponsors = await client.getSponsorsForGuest(userId)
+    logger.debug(`setSponsors: fetched ${sponsors.length} sponsor(s) for ${userId}`)
+
+    if (sponsors.length === 0) return undefined
+    if (sponsors.length === 1) return sponsors[0].userPrincipalName
     return sponsors.map((x: any) => x.userPrincipalName)
+}
+
+/**
+ * Tries several common locations on the output object to find a usable user ID.
+ * Different SDK commands place the identity in different spots.
+ */
+function resolveUserIdFromOutput(output: AccountObject): string | undefined {
+    if (!output || typeof output !== 'object') return undefined
+    const o = output as any
+    return (
+        o.attributes?.objectId ??
+        o.attributes?.id ??
+        o.identity ??
+        o.key?.simple?.id ??
+        o.id ??
+        o.uuid ??
+        undefined
+    )
 }

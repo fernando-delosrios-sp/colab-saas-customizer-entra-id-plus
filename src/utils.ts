@@ -1,13 +1,39 @@
-import { AttributeChange, Context, logger, readConfig } from '@sailpoint/connector-sdk'
-import { AfterOperationMap, BeforeOperationMap, BeforeOperationInput } from './model/operation'
-import { Config } from './model/config'
+/**
+ * General-purpose utilities
+ *
+ * Helpers shared across the customizer framework and individual
+ * operation implementations:
+ *
+ * - `getLogger` — configures and returns the SDK logger.
+ * - `getAttributeChangeAndValue` — resolves an attribute value from the
+ *   before-operation input (handles both `attributes` and `changes`).
+ * - `setAttribute` / `setAttributeImmutable` — write a value to an object
+ *   using the attribute path convention.
+ *
+ * The core operation engine (runners) lives in `operationRunner.ts`.
+ */
+import { AttributeChange, logger } from '@sailpoint/connector-sdk'
+import { BeforeOperationInput } from './model/operation'
 
+// ---------------------------------------------------------------------------
+// Logger helper
+// ---------------------------------------------------------------------------
+
+/** Configures the SDK logger level based on the debug flag and returns it. */
 export const getLogger = (isDebug: boolean) => {
     logger.level = isDebug ? 'debug' : 'info'
     return logger
 }
 
-/** Gets the attribute change and value from input (attributes or changes). */
+// ---------------------------------------------------------------------------
+// Input helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves an attribute value from before-operation input.
+ * Checks both `input.attributes` and `input.changes` (for update payloads).
+ * Returns the matching AttributeChange (if any) and the resolved value.
+ */
 export const getAttributeChangeAndValue = (
     input: BeforeOperationInput,
     attributeName: string
@@ -17,10 +43,23 @@ export const getAttributeChangeAndValue = (
     return { change, value }
 }
 
+// ---------------------------------------------------------------------------
+// Attribute setters
+// ---------------------------------------------------------------------------
+
+/**
+ * Mutates `object` by setting the value at the given attribute path.
+ *
+ * Path conventions:
+ *  - 'attributes.foo'  →  object.attributes.foo = value
+ *  - 'disabled'        →  object.disabled = value
+ *
+ * Returns true on success, false if the object is frozen or missing.
+ */
 export const setAttribute = (object: any, attribute: string, value: any): boolean => {
     if (!object) return false
     if (attribute.startsWith('attributes.')) {
-        const key = attribute.substring(11)
+        const key = attribute.substring('attributes.'.length)
         try {
             if (!object.attributes) object.attributes = {}
             object.attributes[key] = value
@@ -37,54 +76,17 @@ export const setAttribute = (object: any, attribute: string, value: any): boolea
     }
 }
 
-/** Returns object with attribute set. Use when object is frozen and cannot be mutated. */
+/**
+ * Immutable variant of setAttribute. Returns a shallow copy of `object` with
+ * the attribute set. Use when the SDK output object is frozen and cannot be
+ * mutated in place.
+ */
 export const setAttributeImmutable = (object: any, attribute: string, value: any): any => {
     if (!object) return object
     if (attribute.startsWith('attributes.')) {
-        const key = attribute.substring(11)
+        const key = attribute.substring('attributes.'.length)
         const attrs = object.attributes ?? {}
         return { ...object, attributes: { ...attrs, [key]: value } }
     }
     return { ...object, [attribute]: value }
-}
-
-export const runBeforeOperations = <T extends BeforeOperationInput>(operations: BeforeOperationMap<T>) => {
-    return async (context: Context, input: T): Promise<T> => {
-        const config: Config = await readConfig()
-        const logger = getLogger(config.spConnDebugLoggingEnabled)
-        for (const [attribute, operation] of Object.entries(operations)) {
-            const shortName = attribute.startsWith('attributes.') ? attribute.slice('attributes.'.length) : attribute
-            const hasAttribute =
-                input.attributes?.[attribute] != null ||
-                input.attributes?.[shortName] != null ||
-                input.changes?.some((c) => c.attribute === attribute || c.attribute === shortName)
-            if (hasAttribute) {
-                logger.debug(`${context.commandType} - Running before operation for attribute ${attribute}`)
-                input = await operation(context, input)
-            }
-        }
-        return input
-    }
-}
-
-export const runAfterOperations = <T>(operations: AfterOperationMap<T>) => {
-    return async (context: Context, output: T): Promise<T> => {
-        const config: Config = await readConfig()
-        const logger = getLogger(config.spConnDebugLoggingEnabled)
-        const isArray = Array.isArray(output)
-        const items: any[] = isArray ? output : [output]
-        let result: any[] = items
-        for (const [attribute, operation] of Object.entries(operations)) {
-            for (let i = 0; i < items.length; i++) {
-                const item = result[i]
-                logger.debug(`${context.commandType} - Running after operation for attribute ${attribute}`)
-                const value = await operation(context, item)
-                if (!setAttribute(item, attribute, value)) {
-                    result = [...result]
-                    result[i] = setAttributeImmutable(item, attribute, value)
-                }
-            }
-        }
-        return (isArray ? result : result[0]) as T
-    }
 }

@@ -1,51 +1,47 @@
-import {
-    Context,
-    StdEntitlementListInput,
-    StdEntitlementListOutput,
-    StdEntitlementReadInput,
-    StdEntitlementReadOutput,
-} from '@sailpoint/connector-sdk'
+/**
+ * Entitlement Operations
+ *
+ * Register your custom before/after operations for entitlement attributes here.
+ * Each entry maps an attribute name (e.g. 'application') to a handler function.
+ * Use a `null` key for operations that should run unconditionally.
+ *
+ * - Before operations run before the connector processes the command.
+ * - After operations run after the connector returns its output and enrich each entitlement.
+ *
+ * To add a custom attribute:
+ *   1. Write your operation function in src/operations/
+ *   2. Add the attribute name → function entry to the map below
+ *   3. The framework handles the rest (iteration, attribute assignment, logging)
+ */
+import { Context } from '@sailpoint/connector-sdk'
 import { EntitlementObject, AfterOperationMap, BeforeOperationMap, BeforeOperationInput } from './model/operation'
-import { runAfterOperations, runBeforeOperations } from './utils'
+import { runAfterOperations, runBeforeOperations } from './operationRunner'
 import { getApplication } from './operations/getApplication'
 
-// Before operations (executed before the connector processes the command)
+// ---------------------------------------------------------------------------
+// Operation maps — add your custom entitlement operations here
+// ---------------------------------------------------------------------------
+
+/** Before operations: keyed by attribute name (or `null` for always-run). Currently empty. */
 export const entitlementBeforeOperations: BeforeOperationMap<BeforeOperationInput> = {}
 
-// After operations (executed after the connector processes the command)
+/** After operations: keyed by attribute name (or `null` for always-run). */
 export const entitlementAfterOperations: AfterOperationMap<EntitlementObject> = {
-    'attributes.application': getApplication,
+    application: getApplication,
 }
 
-const runEntitlementBeforeOperationsImpl = runBeforeOperations(entitlementBeforeOperations)
-const runEntitlementAfterOperationsImpl = runAfterOperations(entitlementAfterOperations)
+// ---------------------------------------------------------------------------
+// Handlers passed to the customizer in index.ts
+// ---------------------------------------------------------------------------
 
-// Before operation overloads
-export function runEntitlementBeforeOperations(
+/** Runs all registered before-operations for entitlements. */
+export const runEntitlementBeforeOperations = runBeforeOperations(entitlementBeforeOperations) as (
     context: Context,
-    input: StdEntitlementListInput
-): Promise<StdEntitlementListInput>
-export function runEntitlementBeforeOperations(
-    context: Context,
-    input: StdEntitlementReadInput
-): Promise<StdEntitlementReadInput>
+    input: any
+) => Promise<any>
 
-// Before implementation
-export function runEntitlementBeforeOperations(context: Context, input: any): Promise<any> {
-    return runEntitlementBeforeOperationsImpl(context, input)
-}
-
-// After operation overloads
-export function runEntitlementAfterOperations(
+/** Runs all registered after-operations for entitlements. */
+export const runEntitlementAfterOperations = runAfterOperations(entitlementAfterOperations) as (
     context: Context,
-    output: StdEntitlementListOutput
-): Promise<StdEntitlementListOutput>
-export function runEntitlementAfterOperations(
-    context: Context,
-    output: StdEntitlementReadOutput
-): Promise<StdEntitlementReadOutput>
-
-// After implementation
-export function runEntitlementAfterOperations(context: Context, output: EntitlementObject): Promise<EntitlementObject> {
-    return runEntitlementAfterOperationsImpl(context, output)
-}
+    output: any
+) => Promise<any>
