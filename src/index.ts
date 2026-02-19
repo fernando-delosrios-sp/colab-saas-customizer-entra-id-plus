@@ -36,10 +36,6 @@ export const connectorCustomizer = async () => {
         .afterStdAccountRead(runAccountAfterOperations)
         .afterStdAccountCreate(runAccountAfterOperations)
         .afterStdAccountUpdate(runAccountAfterOperations)
-        .afterStdAccountDisable(runAccountAfterOperations)
-        .afterStdAccountEnable(runAccountAfterOperations)
-        .afterStdAccountUnlock(runAccountAfterOperations)
-        .afterStdChangePassword(runAccountAfterOperations)
         // Entitlement after-handlers
         .afterStdEntitlementList(runEntitlementAfterOperations)
         .afterStdEntitlementRead(runEntitlementAfterOperations)

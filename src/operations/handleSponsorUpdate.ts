@@ -35,6 +35,8 @@ export type CachedInput = {
     key?: any
     /** Present only when the before operation could not apply the sponsor change (e.g. create). */
     pendingSponsor?: { op: AttributeChangeOp; upn?: string }
+    /** The sponsor UPN that was set in this invocation (so the after op can enforce single-sponsor). */
+    setUpn?: string
 }
 
 const inputCache = new Map<string, CachedInput>()
@@ -131,6 +133,7 @@ export const handleSponsorUpdate: BeforeOperation = async (context: Context, inp
                 userId,
                 identity: input.identity,
                 key: input.key,
+                setUpn: op !== AttributeChangeOp.Remove ? sponsorUpn : undefined,
             })
         }
 

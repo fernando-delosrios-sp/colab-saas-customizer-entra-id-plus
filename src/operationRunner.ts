@@ -108,6 +108,16 @@ export const runAfterOperations = <T>(operations: AfterOperationMap<T>) => {
 
             for (let i = 0; i < items.length; i++) {
                 const item = result[i]
+
+                // Skip attribute writes on outputs that don't carry an attributes bag
+                // (e.g. update, disable, enable, unlock, changePassword responses).
+                if (attributePath.startsWith('attributes.') && !item?.attributes) {
+                    logger.debug(
+                        `${context.commandType} - Skipping after operation for ${key}: output has no attributes`
+                    )
+                    continue
+                }
+
                 logger.debug(`${context.commandType} - Running after operation for attribute ${key}`)
                 const value = await operation(context, item)
                 // Try mutable set first; fall back to immutable copy if frozen
