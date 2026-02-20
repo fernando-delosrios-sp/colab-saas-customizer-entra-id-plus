@@ -7,36 +7,58 @@
  * registered for a given map the handler is a no-op (returns input/output unchanged).
  *
  * To support a new connector:
- *   - Replace / extend accountOperations and entitlementOperations
+ *   - Only update `customOperations.ts`
  *   - Swap the API client (EntraIdClient) for your target system
  *   - No changes needed in this file or in the framework utilities
  */
 import { createConnectorCustomizer, logger } from '@sailpoint/connector-sdk'
-import { runAccountBeforeOperations, runAccountAfterOperations } from './accountOperations'
-import { runEntitlementBeforeOperations, runEntitlementAfterOperations } from './entitlementOperations'
+import { runBeforeOperations, runAfterOperations } from './operationRunner'
+import { customOperations } from './customOperations'
 
 export const connectorCustomizer = async () => {
     logger.info('Initializing connector customizer')
 
     return createConnectorCustomizer()
-        // Account before-handlers
-        .beforeStdAccountList(runAccountBeforeOperations)
-        .beforeStdAccountRead(runAccountBeforeOperations)
-        .beforeStdAccountCreate(runAccountBeforeOperations)
-        .beforeStdAccountUpdate(runAccountBeforeOperations)
-        .beforeStdAccountDisable(runAccountBeforeOperations)
-        .beforeStdAccountEnable(runAccountBeforeOperations)
-        .beforeStdAccountUnlock(runAccountBeforeOperations)
-        .beforeStdChangePassword(runAccountBeforeOperations)
-        // Entitlement before-handlers
-        .beforeStdEntitlementList(runEntitlementBeforeOperations)
-        .beforeStdEntitlementRead(runEntitlementBeforeOperations)
-        // Account after-handlers
-        .afterStdAccountList(runAccountAfterOperations)
-        .afterStdAccountRead(runAccountAfterOperations)
-        .afterStdAccountCreate(runAccountAfterOperations)
-        .afterStdAccountUpdate(runAccountAfterOperations)
-        // Entitlement after-handlers
-        .afterStdEntitlementList(runEntitlementAfterOperations)
-        .afterStdEntitlementRead(runEntitlementAfterOperations)
+        // Test Connection
+        .beforeStdTestConnection(runBeforeOperations('beforeStdTestConnection', customOperations))
+        .afterStdTestConnection(runAfterOperations('afterStdTestConnection', customOperations))
+        // Account
+        .beforeStdAccountCreate(runBeforeOperations('beforeStdAccountCreate', customOperations))
+        .afterStdAccountCreate(runAfterOperations('afterStdAccountCreate', customOperations))
+        .beforeStdAccountRead(runBeforeOperations('beforeStdAccountRead', customOperations))
+        .afterStdAccountRead(runAfterOperations('afterStdAccountRead', customOperations))
+        .beforeStdAccountUpdate(runBeforeOperations('beforeStdAccountUpdate', customOperations))
+        .afterStdAccountUpdate(runAfterOperations('afterStdAccountUpdate', customOperations))
+        .beforeStdAccountDelete(runBeforeOperations('beforeStdAccountDelete', customOperations))
+        .afterStdAccountDelete(runAfterOperations('afterStdAccountDelete', customOperations))
+        .beforeStdAccountEnable(runBeforeOperations('beforeStdAccountEnable', customOperations))
+        .afterStdAccountEnable(runAfterOperations('afterStdAccountEnable', customOperations))
+        .beforeStdAccountDisable(runBeforeOperations('beforeStdAccountDisable', customOperations))
+        .afterStdAccountDisable(runAfterOperations('afterStdAccountDisable', customOperations))
+        .beforeStdAccountUnlock(runBeforeOperations('beforeStdAccountUnlock', customOperations))
+        .afterStdAccountUnlock(runAfterOperations('afterStdAccountUnlock', customOperations))
+        .beforeStdAccountList(runBeforeOperations('beforeStdAccountList', customOperations))
+        .afterStdAccountList(runAfterOperations('afterStdAccountList', customOperations))
+        // Authenticate
+        .beforeStdAuthenticate(runBeforeOperations('beforeStdAuthenticate', customOperations))
+        .afterStdAuthenticate(runAfterOperations('afterStdAuthenticate', customOperations))
+        // Config Options
+        .beforeStdConfigOptions(runBeforeOperations('beforeStdConfigOptions', customOperations))
+        .afterStdConfigOptions(runAfterOperations('afterStdConfigOptions', customOperations))
+        // Application Discovery List
+        .beforeStdApplicationDiscoveryList(runBeforeOperations('beforeStdApplicationDiscoveryList', customOperations))
+        .afterStdApplicationDiscoveryList(runAfterOperations('afterStdApplicationDiscoveryList', customOperations))
+        // Entitlement
+        .beforeStdEntitlementRead(runBeforeOperations('beforeStdEntitlementRead', customOperations))
+        .afterStdEntitlementRead(runAfterOperations('afterStdEntitlementRead', customOperations))
+        .beforeStdEntitlementList(runBeforeOperations('beforeStdEntitlementList', customOperations))
+        .afterStdEntitlementList(runAfterOperations('afterStdEntitlementList', customOperations))
+        // Change Password
+        .beforeStdChangePassword(runBeforeOperations('beforeStdChangePassword', customOperations))
+        .afterStdChangePassword(runAfterOperations('afterStdChangePassword', customOperations))
+        // Source Data
+        .beforeStdSourceDataDiscover(runBeforeOperations('beforeStdSourceDataDiscover', customOperations))
+        .afterStdSourceDataDiscover(runAfterOperations('afterStdSourceDataDiscover', customOperations))
+        .beforeStdSourceDataRead(runBeforeOperations('beforeStdSourceDataRead', customOperations))
+        .afterStdSourceDataRead(runAfterOperations('afterStdSourceDataRead', customOperations))
 }

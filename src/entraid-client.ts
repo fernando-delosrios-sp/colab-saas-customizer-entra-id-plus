@@ -50,6 +50,20 @@ export class EntraIdClient {
         }
     }
 
+    /** Updates the showInAddressList property for a user. */
+    async setShowInAddressList(upnOrId: string, show: boolean): Promise<void> {
+        try {
+            await this.graphClient.api(`/users/${upnOrId}`).patch({
+                showInAddressList: show,
+            })
+            logger.info(`Successfully set showInAddressList to ${show} for user ${upnOrId}`)
+        } catch (error) {
+            logger.error(`Error setting showInAddressList to ${show} for user ${upnOrId}:`)
+            logger.error(error)
+            throw error
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Sponsor methods
     // -----------------------------------------------------------------------

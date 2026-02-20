@@ -12,26 +12,29 @@
  * Only runs for entitlement types listed in APPLICATION_ENTITLEMENT_TYPES.
  */
 import { Context, readConfig } from '@sailpoint/connector-sdk'
-import { EntitlementObject, AfterOperation } from '../model/operation'
+import { AfterOperation, EntitlementAfterOperationInput } from '../model/operation'
 import { Config } from '../model/config'
 import { getLogger } from '../utils'
 
 /** Entitlement types whose displayName contains the "[on] Application" pattern. */
 const APPLICATION_ENTITLEMENT_TYPES = ['applicationRole']
 
-export const getApplication: AfterOperation<EntitlementObject> = async (
-    context: Context,
-    entitlement: EntitlementObject
-) => {
+export const getApplication: AfterOperation<EntitlementAfterOperationInput> = async (context, entitlement) => {
     const config: Config = await readConfig()
     const logger = getLogger(config.spConnDebugLoggingEnabled)
 
-    if (APPLICATION_ENTITLEMENT_TYPES.includes(entitlement.type) && entitlement.attributes.displayName) {
-        logger.debug(`Processing application entitlement type: ${entitlement.type}`)
-        const [_name, application] = entitlement.attributes.displayName.toString().split(' [on] ')
+    const entitlementAny = entitlement as any
+    if (entitlementAny.type && APPLICATION_ENTITLEMENT_TYPES.includes(entitlementAny.type) && entitlementAny.attributes?.displayName) {
+        logger.debug(`Processing application entitlement type: ${entitlementAny.type}`)
+        const [_name, application] = entitlementAny.attributes.displayName.toString().split(' [on] ')
         logger.debug(
-            `Parsed displayName: "${entitlement.attributes.displayName}". Extracted application: "${application}"`
+            `Parsed displayName: "${entitlementAny.attributes.displayName}". Extracted application: "${application}"`
         )
-        return application
+        return {
+            attributes: {
+                ...entitlementAny.attributes,
+                application
+            }
+        }
     }
 }

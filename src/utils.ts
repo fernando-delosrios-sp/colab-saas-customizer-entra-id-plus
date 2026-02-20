@@ -13,7 +13,7 @@
  * The core operation engine (runners) lives in `operationRunner.ts`.
  */
 import { AttributeChange, logger } from '@sailpoint/connector-sdk'
-import { BeforeOperationInput } from './model/operation'
+import { AccountBeforeOperationInput, EntitlementBeforeOperationInput, AnyBeforeOperationInput } from './model/operation'
 
 // ---------------------------------------------------------------------------
 // Logger helper
@@ -35,11 +35,12 @@ export const getLogger = (isDebug: boolean) => {
  * Returns the matching AttributeChange (if any) and the resolved value.
  */
 export const getAttributeChangeAndValue = (
-    input: BeforeOperationInput,
+    input: AnyBeforeOperationInput,
     attributeName: string
 ): { change: AttributeChange | undefined; value: unknown } => {
-    const change = input.changes?.find((c) => c.attribute === attributeName)
-    const value = input.attributes?.[attributeName] ?? change?.value
+    const inputAny = input as any
+    const change = inputAny.changes?.find((c: any) => c.attribute === attributeName)
+    const value = inputAny.attributes?.[attributeName] ?? change?.value
     return { change, value }
 }
 

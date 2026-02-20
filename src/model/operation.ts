@@ -20,73 +20,127 @@
  *   For before operations the pipeline semantics are preserved (input in → input out).
  *   For after operations the return value replaces the entire object.
  */
-import { AttributeChange, Attributes, Context, ObjectOutput, Permission } from '@sailpoint/connector-sdk'
-
-// ---------------------------------------------------------------------------
-// Object shapes
-// ---------------------------------------------------------------------------
-
-/** Generic account object shape compatible with all SDK account outputs. */
-export type AccountObject = ObjectOutput & {
-    disabled?: boolean
-    locked?: boolean
-    attributes?: Attributes
-    permissions?: Permission[]
-}
-
-/** Generic entitlement object shape compatible with all SDK entitlement outputs. */
-export type EntitlementObject = ObjectOutput & {
-    disabled?: boolean
-    locked?: boolean
-    type: string
-    attributes: Attributes
-    permissions?: Permission[]
-}
+import {
+    Context,
+    StdAccountCreateInput, StdAccountReadInput, StdAccountUpdateInput, StdAccountDeleteInput, StdAccountEnableInput, StdAccountDisableInput, StdAccountUnlockInput, StdAccountListInput,
+    StdAccountCreateOutput, StdAccountReadOutput, StdAccountUpdateOutput, StdAccountDeleteOutput, StdAccountEnableOutput, StdAccountDisableOutput, StdAccountUnlockOutput, StdAccountListOutput,
+    StdEntitlementReadInput, StdEntitlementListInput,
+    StdEntitlementReadOutput, StdEntitlementListOutput,
+    StdTestConnectionInput, StdTestConnectionOutput,
+    StdAuthenticateInput, StdAuthenticateOutput,
+    StdConfigOptionsInput, StdConfigOptionsOutput,
+    StdApplicationDiscoveryInputList, StdApplicationDiscoveryOutputList,
+    StdChangePasswordInput, StdChangePasswordOutput,
+    StdSourceDataDiscoverInput, StdSourceDataDiscoverOutput,
+    StdSourceDataReadInput, StdSourceDataReadOutput
+} from '@sailpoint/connector-sdk'
 
 // ---------------------------------------------------------------------------
 // Before-operation types
 // ---------------------------------------------------------------------------
 
 /**
- * Shape expected by before operations.
- * Includes `attributes` (for create/list) and `changes` (for update flows).
+ * Shape expected by before operations for accounts.
  */
-export type BeforeOperationInput = {
-    attributes?: Attributes
-    changes?: Array<AttributeChange>
-}
+export type AccountBeforeOperationInput =
+    | StdAccountCreateInput
+    | StdAccountReadInput
+    | StdAccountUpdateInput
+    | StdAccountDeleteInput
+    | StdAccountEnableInput
+    | StdAccountDisableInput
+    | StdAccountUnlockInput
+    | StdAccountListInput
+
+/**
+ * Shape expected by before operations for entitlements.
+ */
+export type EntitlementBeforeOperationInput =
+    | StdEntitlementReadInput
+    | StdEntitlementListInput
+
+/**
+ * Shape expected by before operations for other features.
+ */
+export type OtherBeforeOperationInput =
+    | StdTestConnectionInput
+    | StdAuthenticateInput
+    | StdConfigOptionsInput
+    | StdApplicationDiscoveryInputList
+    | StdChangePasswordInput
+    | StdSourceDataDiscoverInput
+    | StdSourceDataReadInput
+
+export type AnyBeforeOperationInput = AccountBeforeOperationInput | EntitlementBeforeOperationInput | OtherBeforeOperationInput
 
 /**
  * A before operation transforms the SDK input in a pipeline fashion.
  * It receives the full input object and must return the (possibly modified) input.
  */
-export type BeforeOperation<T = any> = (context: Context, input: T) => Promise<T>
-
-/**
- * Map of before operations keyed by attribute name.
- * Use the plain attribute name (e.g. 'sponsors') — the framework resolves
- * the full path automatically. A `null` key means "always run".
- */
-export type BeforeOperationMap<T extends BeforeOperationInput = BeforeOperationInput> = {
-    [attributeName: string]: BeforeOperation<T>
-}
+export type BeforeOperation<T extends AnyBeforeOperationInput = AnyBeforeOperationInput> = (context: Context, input: T) => Promise<Partial<T> | undefined>
 
 // ---------------------------------------------------------------------------
 // After-operation types
 // ---------------------------------------------------------------------------
 
 /**
- * An after operation computes a value for a single attribute.
- * It receives the output object and returns the value to assign.
+ * Shape expected by after operations for accounts.
  */
-export type AfterOperation<T = any> = (context: Context, object: T) => Promise<any>
+export type AccountAfterOperationInput =
+    | StdAccountCreateOutput
+    | StdAccountReadOutput
+    | StdAccountUpdateOutput
+    | StdAccountDeleteOutput
+    | StdAccountEnableOutput
+    | StdAccountDisableOutput
+    | StdAccountUnlockOutput
+    | StdAccountListOutput
 
 /**
- * Map of after operations keyed by attribute name.
- * Use the plain attribute name (e.g. 'sponsors') — the framework resolves
- * the full path automatically. A `null` key means "always run" and the
- * return value replaces the entire object.
+ * Shape expected by after operations for entitlements.
  */
-export type AfterOperationMap<T = any> = {
-    [attributeName: string]: AfterOperation<T>
+export type EntitlementAfterOperationInput =
+    | StdEntitlementReadOutput
+    | StdEntitlementListOutput
+
+/**
+ * Shape expected by after operations for other features.
+ */
+export type OtherAfterOperationInput =
+    | StdTestConnectionOutput
+    | StdAuthenticateOutput
+    | StdConfigOptionsOutput
+    | StdApplicationDiscoveryOutputList
+    | StdChangePasswordOutput
+    | StdSourceDataDiscoverOutput
+    | StdSourceDataReadOutput
+
+export type AnyAfterOperationInput = AccountAfterOperationInput | EntitlementAfterOperationInput | OtherAfterOperationInput
+
+/**
+ * An after operation returns an object containing the attributes to be merged into the output object.
+ * Returns undefined if no modification is needed.
+ */
+export type AfterOperation<T extends AnyAfterOperationInput = AnyAfterOperationInput> = (context: Context, object: T) => Promise<Partial<T> | undefined>
+
+// ---------------------------------------------------------------------------
+// Unified operation types
+// ---------------------------------------------------------------------------
+
+/**
+ * A combined operation map where keys follow the pattern `<hookPattern>.<attributePattern>`.
+ * For example:
+ * - `*.*` - Runs on all hooks for all attributes.
+ * - `*.sponsors` - Runs on all hooks for the 'sponsors' attribute.
+ * - `beforeStdAccountList.*` - Runs on the beforeStdAccountList hook for all attributes.
+ * - `afterStdAccountRead.sponsors` - Runs on the afterStdAccountRead hook for the 'sponsors' attribute.
+ */
+export type CustomOperationMap = {
+    [pattern: string]:
+    | BeforeOperation<any>
+    | AfterOperation<any>
+    | Array<
+        | BeforeOperation<any>
+        | AfterOperation<any>
+    >
 }
