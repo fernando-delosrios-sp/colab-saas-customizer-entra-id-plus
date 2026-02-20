@@ -11,25 +11,20 @@
  */
 import { Context, readConfig } from '@sailpoint/connector-sdk'
 import { EntraIdClient } from '../entraid-client'
-import { AccountObject, AfterOperation } from '../model/operation'
+import { AfterOperation, AccountAfterOperationInput } from '../model/operation'
 import { Config } from '../model/config'
 import { getLogger } from '../utils'
-import { resolveUserIdFromOutput } from './setSponsors'
-
-export const setGuestGalVisibility: AfterOperation<AccountObject> = async (
-    context: Context,
-    output: AccountObject
-): Promise<any> => {
+export const setGuestGalVisibility: AfterOperation<AccountAfterOperationInput> = async (context, output) => {
     const config: Config = await readConfig()
     const logger = getLogger(config.spConnDebugLoggingEnabled)
 
-    const userId = resolveUserIdFromOutput(output)
+    const userId = (output as any).identity
     if (!userId) {
         logger.debug('setGuestGalVisibility: no userId found, returning')
         return undefined
     }
 
-    const userType = output?.attributes?.userType
+    const userType = (output as any)?.attributes?.userType
     if (userType !== 'Guest') {
         logger.debug(`setGuestGalVisibility: user ${userId} is not a Guest (userType=${userType}), skipping`)
         return undefined

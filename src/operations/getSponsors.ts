@@ -1,21 +1,16 @@
-import { Context, readConfig } from '@sailpoint/connector-sdk'
+import { readConfig } from '@sailpoint/connector-sdk'
 import { EntraIdClient } from '../entraid-client'
-import { AccountObject, AfterOperation } from '../model/operation'
+import { AfterOperation, AccountAfterOperationInput } from '../model/operation'
 import { Config } from '../model/config'
 import { getLogger } from '../utils'
-import { resolveUserIdFromOutput } from './setSponsors'
-import { getCachedInput } from './handleSponsorUpdate'
 
-export const getSponsors: AfterOperation<AccountObject> = async (
-    context: Context,
-    output: AccountObject
-): Promise<any> => {
+export const getSponsors: AfterOperation<AccountAfterOperationInput> = async (context, output) => {
     const config: Config = await readConfig()
     const logger = getLogger(config.spConnDebugLoggingEnabled)
 
-    const userId = resolveUserIdFromOutput(output)
+    const userId = (output as any).identity
     if (!userId) {
-        logger.debug('getSponsors: no userId found, returning undefined')
+        logger.debug('getSponsors: no identity found, returning undefined')
         return undefined
     }
 
@@ -27,22 +22,10 @@ export const getSponsors: AfterOperation<AccountObject> = async (
 
     if (sponsors.length === 0) return undefined
 
-    const cached = getCachedInput(context)
-    const setUpn = cached?.setUpn ?? cached?.pendingSponsor?.upn
-    let resolvedUpn = sponsors[0].userPrincipalName
-    if (setUpn && sponsors.length > 1) {
-        const match = sponsors.find(
-            (s: any) => s.userPrincipalName?.toLowerCase() === setUpn.toLowerCase()
-        )
-        if (match) {
-            resolvedUpn = match.userPrincipalName
-        }
-    }
-
     return {
         attributes: {
-            ...output.attributes,
-            sponsors: resolvedUpn
+            ...(output as any).attributes,
+            sponsors: sponsors[0].userPrincipalName
         }
     }
 }

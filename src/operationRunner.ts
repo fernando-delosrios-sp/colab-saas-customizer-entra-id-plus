@@ -19,7 +19,7 @@
  * These utilities are connector-agnostic. Plug in any OperationMap and they work.
  */
 import { Context, readConfig } from '@sailpoint/connector-sdk'
-import { BeforeOperationInput, CustomOperationMap } from './model/operation'
+import { AnyBeforeOperationInput, AnyAfterOperationInput, CustomOperationMap } from './model/operation'
 import { Config } from './model/config'
 import { getLogger, setAttribute, setAttributeImmutable } from './utils'
 
@@ -43,7 +43,7 @@ function matchesPattern(hook: string, pattern: string): boolean {
  * Keys are plain attribute names (e.g. 'sponsors'). The legacy 'attributes.'
  * prefix is still accepted but no longer required.
  */
-export const runBeforeOperations = <T extends BeforeOperationInput>(hookName: string, operations: CustomOperationMap) => {
+export const runBeforeOperations = <T extends AnyBeforeOperationInput>(hookName: string, operations: CustomOperationMap) => {
     return async (context: Context, input: T): Promise<T> => {
         const config: Config = await readConfig()
         const logger = getLogger(config.spConnDebugLoggingEnabled)
@@ -76,11 +76,12 @@ export const runBeforeOperations = <T extends BeforeOperationInput>(hookName: st
             const attrName = attrPattern.startsWith('attributes.') ? attrPattern.slice('attributes.'.length) : attrPattern
 
             // Check if the attribute is present in any of the possible input locations
+            const inputAny = input as any
             const hasAttribute =
-                input.attributes?.[attrName] != null ||
-                input.attributes?.[attrPattern] != null ||
-                (input as any).primaryData?.[attrName] != null ||
-                input.changes?.some((c) => c.attribute === attrName || c.attribute === attrPattern)
+                inputAny.attributes?.[attrName] != null ||
+                inputAny.attributes?.[attrPattern] != null ||
+                inputAny.primaryData?.[attrName] != null ||
+                inputAny.changes?.some((c: any) => c.attribute === attrName || c.attribute === attrPattern)
 
             if (hasAttribute) {
                 logger.debug(`${context.commandType} - Running before operation for attribute ${attrName}`)
@@ -112,7 +113,7 @@ export const runBeforeOperations = <T extends BeforeOperationInput>(hookName: st
  * 'attributes.' automatically. The legacy 'attributes.' prefix is still
  * accepted but no longer required.
  */
-export const runAfterOperations = <T>(hookName: string, operations: CustomOperationMap) => {
+export const runAfterOperations = <T extends AnyAfterOperationInput>(hookName: string, operations: CustomOperationMap) => {
     return async (context: Context, output: T): Promise<T> => {
         const config: Config = await readConfig()
         const logger = getLogger(config.spConnDebugLoggingEnabled)

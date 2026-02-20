@@ -1,8 +1,7 @@
 import { CustomOperationMap } from './model/operation'
 
-import { setSponsors } from './operations/setSponsors'
+import { setSponsors, preSetSponsors } from './operations/setSponsors'
 import { getSponsors } from './operations/getSponsors'
-import { handleSponsorUpdate as preSetSponsors } from './operations/handleSponsorUpdate'
 import { getApplication } from './operations/getApplication'
 import { setGuestGalVisibility } from './operations/setGuestGalVisibility'
 
