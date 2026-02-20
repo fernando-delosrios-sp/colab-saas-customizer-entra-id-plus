@@ -32,6 +32,11 @@ export const getApplication: AfterOperation<EntitlementObject> = async (
         logger.debug(
             `Parsed displayName: "${entitlement.attributes.displayName}". Extracted application: "${application}"`
         )
-        return application
+        return {
+            attributes: {
+                ...entitlement.attributes,
+                application
+            }
+        }
     }
 }

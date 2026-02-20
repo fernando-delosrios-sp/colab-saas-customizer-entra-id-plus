@@ -26,7 +26,7 @@ import { getCachedInput } from './handleSponsorUpdate'
 export const setSponsors: AfterOperation<AccountObject> = async (
     context: Context,
     output: AccountObject
-): Promise<string | string[] | undefined> => {
+): Promise<any> => {
     const config: Config = await readConfig()
     const logger = getLogger(config.spConnDebugLoggingEnabled)
 
@@ -43,7 +43,7 @@ export const setSponsors: AfterOperation<AccountObject> = async (
     logger.debug(`setSponsors: userId=${userId}`)
 
     if (!userId) {
-        logger.debug('setSponsors: no userId found, returning undefined')
+        logger.debug('setSponsors: no userId found, returning unmodified output')
         return undefined
     }
 
@@ -60,41 +60,14 @@ export const setSponsors: AfterOperation<AccountObject> = async (
         }
     }
 
-    // Read current sponsors from Graph
-    const sponsors = await client.getSponsorsForGuest(userId)
-    logger.debug(`setSponsors: fetched ${sponsors.length} sponsor(s) for ${userId}`)
-
-    if (sponsors.length === 0) return undefined
-
-    // If a sponsor was just set and there are extras, keep only the intended one
-    const setUpn = cached?.setUpn ?? cached?.pendingSponsor?.upn
-    if (setUpn && sponsors.length > 1) {
-        const match = sponsors.find(
-            (s: any) => s.userPrincipalName?.toLowerCase() === setUpn.toLowerCase()
-        )
-        // Best-effort cleanup of extra sponsors (fire-and-forget)
-        for (const s of sponsors) {
-            if (match && s.id !== match.id) {
-                client.removeSponsorForUser(userId, s.id).catch((e: any) => {
-                    logger.warn(`setSponsors: failed to remove extra sponsor ${s.id}: ${e}`)
-                })
-            }
-        }
-        if (match) {
-            logger.debug(`setSponsors: enforced single sponsor ${match.userPrincipalName}`)
-            return match.userPrincipalName
-        }
-    }
-
-    if (sponsors.length === 1) return sponsors[0].userPrincipalName
-    return sponsors.map((x: any) => x.userPrincipalName)
+    return undefined
 }
 
 /**
  * Tries several common locations on the output object to find a usable user ID.
  * Different SDK commands place the identity in different spots.
  */
-function resolveUserIdFromOutput(output: AccountObject): string | undefined {
+export function resolveUserIdFromOutput(output: AccountObject): string | undefined {
     if (!output || typeof output !== 'object') return undefined
     const o = output as any
     return (

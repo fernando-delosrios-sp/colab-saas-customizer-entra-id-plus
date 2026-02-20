@@ -27,20 +27,20 @@ index.ts                      ← entry point: wires handlers to SDK commands
 
 2. Each handler delegates to the **operation runner** in `utils.ts`, which iterates an **operation map** — a plain object that maps an attribute path to a function:
 
-   ```typescript
-   // accountOperations.ts
-   export const accountAfterOperations: AfterOperationMap<AccountObject> = {
-       'attributes.sponsors': setSponsors, // attribute path → function
-   }
-   ```
+    ```typescript
+    // accountOperations.ts
+    export const accountAfterOperations: AfterOperationMap<AccountObject> = {
+        'attributes.sponsors': setSponsors, // attribute path → function
+    }
+    ```
 
 3. **Before operations** transform the SDK input in a pipeline (each function receives the input and returns the modified input). They only run when the input contains the relevant attribute.
 
 4. **After operations** run against every output object. Each function receives the object and returns a value that the engine writes to the mapped attribute path (e.g. `attributes.sponsors`).
 
 5. Attribute paths follow a simple convention:
-   - `'attributes.foo'` → writes to `object.attributes.foo`
-   - `'disabled'` → writes to `object.disabled`
+    - `'attributes.foo'` → writes to `object.attributes.foo`
+    - `'disabled'` → writes to `object.disabled`
 
 ---
 
@@ -85,13 +85,14 @@ That's it. The framework handles iteration, attribute assignment, frozen-object 
 
 The only Entra ID-specific files are:
 
-| File | Purpose |
-|------|---------|
-| `src/entraid-client.ts` | Microsoft Graph API wrapper |
-| `src/operations/setSponsors.ts` | After-op: fetch sponsors |
-| `src/operations/handleSponsorUpdate.ts` | Before-op: apply sponsor changes |
-| `src/operations/getApplication.ts` | After-op: parse app from entitlement |
-| `src/model/config.ts` | Entra ID connector config interface |
+| File                                      | Purpose                                |
+| ----------------------------------------- | -------------------------------------- |
+| `src/entraid-client.ts`                   | Microsoft Graph API wrapper            |
+| `src/operations/setSponsors.ts`           | After-op: fetch sponsors               |
+| `src/operations/handleSponsorUpdate.ts`   | Before-op: apply sponsor changes       |
+| `src/operations/getApplication.ts`        | After-op: parse app from entitlement   |
+| `src/operations/setGuestGalVisibility.ts` | After-op: enforce guest GAL visibility |
+| `src/model/config.ts`                     | Entra ID connector config interface    |
 
 Everything else (`index.ts`, `utils.ts`, `model/operation.ts`, `accountOperations.ts`, `entitlementOperations.ts`) is generic framework code. To target a different connector:
 
@@ -106,18 +107,24 @@ Everything else (`index.ts`, `utils.ts`, `model/operation.ts`, `accountOperation
 
 #### Sponsors (account attribute)
 
-| Phase | Operation | What it does |
-|-------|-----------|-------------|
+| Phase  | Operation             | What it does                                                                                                                                                                                                                    |
+| ------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Before | `handleSponsorUpdate` | Intercepts sponsor changes in the input. For **update** commands, applies them immediately via Graph API. For **create** commands, defers the write (user doesn't exist yet) and caches the pending change for the after phase. |
-| After | `setSponsors` | If a deferred sponsor change was cached (create flow), applies it now that the user exists. Then fetches sponsors from `GET /users/{id}/sponsors` and returns UPN(s). |
+| After  | `setSponsors`         | If a deferred sponsor change was cached (create flow), applies it now that the user exists. Then fetches sponsors from `GET /users/{id}/sponsors` and returns UPN(s).                                                           |
 
 Sponsors are a **navigation property** in Microsoft Graph (not a direct attribute), so the base connector cannot read/write them natively. This before/after pair handles them transparently.
 
+#### Guest GAL Visibility (account attribute)
+
+| Phase | Operation               | What it does                                                                                                                                                                                       |
+| ----- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| After | `setGuestGalVisibility` | For `Guest` users, enforces their visibility in the Exchange Global Address List by calling the Graph API to set `showInAddressList: true` upon account creation or update. Skips non-Guest users. |
+
 #### Application (entitlement attribute)
 
-| Phase | Operation | What it does |
-|-------|-----------|-------------|
-| After | `getApplication` | For `applicationRole` entitlements, splits `displayName` on ` [on] ` and returns the application name portion. |
+| Phase | Operation        | What it does                                                                                                 |
+| ----- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| After | `getApplication` | For `applicationRole` entitlements, splits `displayName` on `[on]` and returns the application name portion. |
 
 ---
 
@@ -125,12 +132,12 @@ Sponsors are a **navigation property** in Microsoft Graph (not a direct attribut
 
 The customizer reuses the same configuration as the base connector. The key fields used by the included Entra ID operations are:
 
-| Field | Used for |
-|-------|----------|
-| `domainName` | Entra ID tenant ID (passed to `ClientSecretCredential`) |
-| `clientID` | Application (client) ID |
-| `clientSecret` | Application secret |
-| `spConnDebugLoggingEnabled` | Toggles debug-level logging |
+| Field                       | Used for                                                |
+| --------------------------- | ------------------------------------------------------- |
+| `domainName`                | Entra ID tenant ID (passed to `ClientSecretCredential`) |
+| `clientID`                  | Application (client) ID                                 |
+| `clientSecret`              | Application secret                                      |
+| `spConnDebugLoggingEnabled` | Toggles debug-level logging                             |
 
 No additional configuration is required beyond what the base connector provides.
 
@@ -159,32 +166,32 @@ npm run pack-zip      # package for deployment (spcx package)
 
 Controlled by `spConnDebugLoggingEnabled`:
 
-- `true` → `logger.level = 'debug'` (verbose operation tracing)
-- `false` → `logger.level = 'info'` (production)
+-   `true` → `logger.level = 'debug'` (verbose operation tracing)
+-   `false` → `logger.level = 'info'` (production)
 
 ---
 
 ### Troubleshooting
 
-| Symptom | Likely cause |
-|---------|-------------|
-| Auth errors from Graph | Check `clientID`, `clientSecret`, `domainName` and required Graph permissions (`User.Read.All`, `Directory.Read.All`) |
-| Missing attributes on output | Verify the incoming object contains the fields your operations use (`objectId`, `userPrincipalName`, `uuid`, `type`). Add null checks as needed. |
+| Symptom                                         | Likely cause                                                                                                                                                                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth errors from Graph                          | Check `clientID`, `clientSecret`, `domainName` and required Graph permissions (`User.Read.All`, `Directory.Read.All`)                                                                                      |
+| Missing attributes on output                    | Verify the incoming object contains the fields your operations use (`objectId`, `userPrincipalName`, `uuid`, `type`). Add null checks as needed.                                                           |
 | 404 on aggregation with `sponsors` in `$select` | `sponsors` is a Graph navigation property (requires `$expand`, not `$select`). Configure the attribute in ISC so the base connector does not fetch it — the customizer handles it via a separate API call. |
-| Graph throttling / failures | Check logs for `Error fetching ...` messages. Consider adding retry/backoff in the client methods. |
+| Graph throttling / failures                     | Check logs for `Error fetching ...` messages. Consider adding retry/backoff in the client methods.                                                                                                         |
 
 ---
 
 ### Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `@sailpoint/connector-sdk` | Customizer runtime, logger, config |
-| `@azure/identity` | Entra ID authentication (`ClientSecretCredential`) |
-| `@microsoft/microsoft-graph-client` | Microsoft Graph API client |
-| `isomorphic-fetch` | Fetch polyfill for Node.js |
-| `@vercel/ncc` | Single-file bundling |
-| `cross-env`, `shx`, `typescript`, `prettier` | Build tooling |
+| Package                                      | Purpose                                            |
+| -------------------------------------------- | -------------------------------------------------- |
+| `@sailpoint/connector-sdk`                   | Customizer runtime, logger, config                 |
+| `@azure/identity`                            | Entra ID authentication (`ClientSecretCredential`) |
+| `@microsoft/microsoft-graph-client`          | Microsoft Graph API client                         |
+| `isomorphic-fetch`                           | Fetch polyfill for Node.js                         |
+| `@vercel/ncc`                                | Single-file bundling                               |
+| `cross-env`, `shx`, `typescript`, `prettier` | Build tooling                                      |
 
 ---
 

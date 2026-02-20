@@ -19,9 +19,16 @@
  * These utilities are connector-agnostic. Plug in any OperationMap and they work.
  */
 import { Context, readConfig } from '@sailpoint/connector-sdk'
-import { AfterOperationMap, BeforeOperationMap, BeforeOperationInput } from './model/operation'
+import { BeforeOperationInput, CustomOperationMap } from './model/operation'
 import { Config } from './model/config'
 import { getLogger, setAttribute, setAttributeImmutable } from './utils'
+
+// Helper function to check if a hook matches a pattern
+function matchesPattern(hook: string, pattern: string): boolean {
+    if (pattern === '*') return true
+    const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`)
+    return regex.test(hook)
+}
 
 /**
  * Creates a before-operation handler from an operation map.
@@ -36,32 +43,54 @@ import { getLogger, setAttribute, setAttributeImmutable } from './utils'
  * Keys are plain attribute names (e.g. 'sponsors'). The legacy 'attributes.'
  * prefix is still accepted but no longer required.
  */
-export const runBeforeOperations = <T extends BeforeOperationInput>(operations: BeforeOperationMap<T>) => {
+export const runBeforeOperations = <T extends BeforeOperationInput>(hookName: string, operations: CustomOperationMap) => {
     return async (context: Context, input: T): Promise<T> => {
         const config: Config = await readConfig()
         const logger = getLogger(config.spConnDebugLoggingEnabled)
 
-        for (const [key, operation] of Object.entries(operations)) {
-            // null key → always run (unconditional operation)
-            if (key === 'null') {
+        for (const [pattern, operation] of Object.entries(operations)) {
+            let hookPattern = '*'
+            let attrPattern = pattern
+            if (pattern.includes('.')) {
+                const firstDotIdx = pattern.indexOf('.')
+                hookPattern = pattern.substring(0, firstDotIdx)
+                attrPattern = pattern.substring(firstDotIdx + 1)
+            }
+
+            if (!matchesPattern(hookName, hookPattern)) continue
+
+            // '*' or 'null' key → always run (unconditional operation)
+            if (attrPattern === '*' || attrPattern === 'null') {
                 logger.debug(`${context.commandType} - Running before operation (always)`)
-                input = await operation(context, input)
+                const ops = Array.isArray(operation) ? operation : [operation]
+                for (const op of ops) {
+                    const functionInput = await (op as any)(context, input)
+                    if (functionInput) {
+                        input = { ...input, ...functionInput }
+                    }
+                }
                 continue
             }
 
             // Derive the short attribute name (strip 'attributes.' prefix if present)
-            const attrName = key.startsWith('attributes.') ? key.slice('attributes.'.length) : key
+            const attrName = attrPattern.startsWith('attributes.') ? attrPattern.slice('attributes.'.length) : attrPattern
 
             // Check if the attribute is present in any of the possible input locations
             const hasAttribute =
                 input.attributes?.[attrName] != null ||
-                input.attributes?.[key] != null ||
+                input.attributes?.[attrPattern] != null ||
                 (input as any).primaryData?.[attrName] != null ||
-                input.changes?.some((c) => c.attribute === attrName || c.attribute === key)
+                input.changes?.some((c) => c.attribute === attrName || c.attribute === attrPattern)
 
             if (hasAttribute) {
                 logger.debug(`${context.commandType} - Running before operation for attribute ${attrName}`)
-                input = await operation(context, input)
+                const ops = Array.isArray(operation) ? operation : [operation]
+                for (const op of ops) {
+                    const functionInput = await (op as any)(context, input)
+                    if (functionInput) {
+                        input = { ...input, ...functionInput }
+                    }
+                }
             }
         }
         return input
@@ -83,7 +112,7 @@ export const runBeforeOperations = <T extends BeforeOperationInput>(operations: 
  * 'attributes.' automatically. The legacy 'attributes.' prefix is still
  * accepted but no longer required.
  */
-export const runAfterOperations = <T>(operations: AfterOperationMap<T>) => {
+export const runAfterOperations = <T>(hookName: string, operations: CustomOperationMap) => {
     return async (context: Context, output: T): Promise<T> => {
         const config: Config = await readConfig()
         const logger = getLogger(config.spConnDebugLoggingEnabled)
@@ -93,18 +122,41 @@ export const runAfterOperations = <T>(operations: AfterOperationMap<T>) => {
         const items: any[] = isArray ? output : [output]
         let result: any[] = items
 
-        for (const [key, operation] of Object.entries(operations)) {
-            // null key → always run; return value replaces the object
-            if (key === 'null') {
+        for (const [pattern, operation] of Object.entries(operations)) {
+            let hookPattern = '*'
+            let attrPattern = pattern
+            if (pattern.includes('.')) {
+                const firstDotIdx = pattern.indexOf('.')
+                hookPattern = pattern.substring(0, firstDotIdx)
+                attrPattern = pattern.substring(firstDotIdx + 1)
+            }
+
+            if (!matchesPattern(hookName, hookPattern)) continue
+
+            // '*' or 'null' key → always run; return value replaces the object
+            if (attrPattern === '*' || attrPattern === 'null') {
                 for (let i = 0; i < items.length; i++) {
                     logger.debug(`${context.commandType} - Running after operation (always)`)
-                    result[i] = await operation(context, result[i])
+                    const ops = Array.isArray(operation) ? operation : [operation]
+                    let currentItem = result[i]
+                    let mutated = false
+                    for (const op of ops) {
+                        const functionOutput = await (op as any)(context, currentItem)
+                        if (functionOutput) {
+                            currentItem = { ...currentItem, ...functionOutput }
+                            mutated = true
+                        }
+                    }
+                    if (mutated) {
+                        if (result === items) result = [...items]
+                        result[i] = currentItem
+                    }
                 }
                 continue
             }
 
             // Derive the full attribute path (prepend 'attributes.' if not already present)
-            const attributePath = key.startsWith('attributes.') ? key : `attributes.${key}`
+            const attributePath = attrPattern.startsWith('attributes.') ? attrPattern : `attributes.${attrPattern}`
 
             for (let i = 0; i < items.length; i++) {
                 const item = result[i]
@@ -113,17 +165,26 @@ export const runAfterOperations = <T>(operations: AfterOperationMap<T>) => {
                 // (e.g. update, disable, enable, unlock, changePassword responses).
                 if (attributePath.startsWith('attributes.') && !item?.attributes) {
                     logger.debug(
-                        `${context.commandType} - Skipping after operation for ${key}: output has no attributes`
+                        `${context.commandType} - Skipping after operation for ${attrPattern}: output has no attributes`
                     )
                     continue
                 }
 
-                logger.debug(`${context.commandType} - Running after operation for attribute ${key}`)
-                const value = await operation(context, item)
-                // Try mutable set first; fall back to immutable copy if frozen
-                if (!setAttribute(item, attributePath, value)) {
-                    result = [...result]
-                    result[i] = setAttributeImmutable(item, attributePath, value)
+                logger.debug(`${context.commandType} - Running after operation for attribute ${attrPattern}`)
+                const ops = Array.isArray(operation) ? operation : [operation]
+                let currentItem = item
+                let mutated = false
+                for (const op of ops) {
+                    const functionOutput = await (op as any)(context, currentItem)
+                    if (functionOutput) {
+                        currentItem = { ...currentItem, ...functionOutput }
+                        mutated = true
+                    }
+                }
+
+                if (mutated) {
+                    if (result === items) result = [...items]
+                    result[i] = currentItem
                 }
             }
         }

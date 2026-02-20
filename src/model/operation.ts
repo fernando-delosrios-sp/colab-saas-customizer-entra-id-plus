@@ -60,7 +60,7 @@ export type BeforeOperationInput = {
  * A before operation transforms the SDK input in a pipeline fashion.
  * It receives the full input object and must return the (possibly modified) input.
  */
-export type BeforeOperation<T = any> = (context: Context, input: T) => Promise<T>
+export type BeforeOperation<T = any> = (context: Context, input: T) => Promise<any>
 
 /**
  * Map of before operations keyed by attribute name.
@@ -89,4 +89,20 @@ export type AfterOperation<T = any> = (context: Context, object: T) => Promise<a
  */
 export type AfterOperationMap<T = any> = {
     [attributeName: string]: AfterOperation<T>
+}
+
+// ---------------------------------------------------------------------------
+// Unified operation types
+// ---------------------------------------------------------------------------
+
+/**
+ * A combined operation map where keys follow the pattern `<hookPattern>.<attributePattern>`.
+ * For example:
+ * - `*.*` - Runs on all hooks for all attributes.
+ * - `*.sponsors` - Runs on all hooks for the 'sponsors' attribute.
+ * - `beforeStdAccountList.*` - Runs on the beforeStdAccountList hook for all attributes.
+ * - `afterStdAccountRead.sponsors` - Runs on the afterStdAccountRead hook for the 'sponsors' attribute.
+ */
+export type CustomOperationMap = {
+    [pattern: string]: BeforeOperation | AfterOperation | Array<BeforeOperation | AfterOperation>
 }
