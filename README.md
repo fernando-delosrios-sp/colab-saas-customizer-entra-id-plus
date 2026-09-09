@@ -1,6 +1,6 @@
-## SaaS Connector Customizer Template
+## SaaS Customizer Framework
 
-A **template** for building SailPoint SaaS Connector Customizers that extend any [supported SaaS connector](https://developer.sailpoint.com/docs/connectivity/saas-connectivity/customizers) with custom account and entitlement attributes. The included implementation targets **Microsoft Entra ID** (sponsors & application parsing), but the framework is connector-agnostic — swap the API client and operations for any connector.
+A framework for building SailPoint SaaS Connector Customizers that extend any [supported SaaS connector](https://developer.sailpoint.com/docs/connectivity/saas-connectivity/customizers) with custom account and entitlement attributes. The included implementation targets **Microsoft Entra ID** (sponsors & application parsing), but the framework is connector-agnostic — swap the API client and operations for any connector.
 
 ---
 
